@@ -10,15 +10,15 @@ namespace TestDataBuilderGenerator
 {
 	class Prop
 	{
-		public string Mod { get; set; }
-		public string Typ { get; set; }
-		public string Name { get; set; }
+		public string PropertyModificator { get; set; }
+		public string PropertyType { get; set; }
+		public string PropertyName { get; set; }
 
 		public Prop(string mod, string typ, string name)
 		{
-			Mod = mod;
-			Typ = typ;
-			Name = name;
+			PropertyModificator = mod;
+			PropertyType = typ;
+			PropertyName = name;
 		}
 
 		public static Prop Parse(string str)
@@ -29,11 +29,12 @@ namespace TestDataBuilderGenerator
 		}
 	}
 
-	class TrimStreamReader: StreamReader
+	class TrimStreamReader : StreamReader
 	{
-		public TrimStreamReader(string name):base(name)
+		public TrimStreamReader(string name) : base(name)
 		{
 		}
+
 		public override string ReadLine()
 		{
 			return base.ReadLine().Trim(new char[] {'\t'});
@@ -41,14 +42,17 @@ namespace TestDataBuilderGenerator
 	}
 	class Program
 	{
-		private static string Name;
 		static void Main(string[] args)
 		{
-			foreach (var filename in args)
-			{
+			var projectName = args[0];
+			var fileNames = new string[args.Length - 1];
+			Array.Copy(args, 1, fileNames, 0, args.Length);
 
-				TrimStreamReader sr = new TrimStreamReader(filename);
-				List<Prop> classFields = new List<Prop>();
+			foreach (var filename in fileNames)
+			{
+				var sr = new TrimStreamReader(filename);
+				var classFields = new List<Prop>();
+
 				string tmp;
 				do
 				{
@@ -56,7 +60,7 @@ namespace TestDataBuilderGenerator
 				} while (!tmp.StartsWith("public class"));
 				tmp = tmp.Replace("public class ", "");
 				tmp = tmp.Split(' ')[0];
-				Name = tmp;
+				var className = tmp;
 				tmp = sr.ReadLine();
 				while (!tmp.StartsWith("private "))
 					tmp = sr.ReadLine();
@@ -77,65 +81,68 @@ namespace TestDataBuilderGenerator
 
 					tmp = sr.ReadLine();
 				}
-				StringBuilder text = new StringBuilder();
+
+				var text = new StringBuilder();
 
 				text.Append(
 					"using Itc.Commons.Tests.DataBuilders;\n" +
 					"using Itc.Commons.Tests.Infrastructure;\n" +
-					"using Itc.JtiCpa.Model;\n" +
+					"using Itc." + projectName + ".Model;\n" +
 					"using Itc.DirectCrm.Model;\n\n" +
-					"namespace Itc.JtiCpa.Tests\n" +
+					"namespace Itc." + projectName + ".Tests\n" +
 					"{\n" +
-					"\tpublic class " + Name + "TestDataBuilder : TestDataBuilder<" + Name + ", " + Name + "TestDataBuilder>\n" +
+					"\tpublic class " + className + "TestDataBuilder : TestDataBuilder<" + className + ", " + className + "TestDataBuilder>\n" +
 					"\t{\n"
 					);
 				foreach (var prop in classFields)
 				{
-					text.Append("\t\t" + prop.Mod + " " + prop.Typ + " " + prop.Name + ";\n");
+					text.Append("\t\t" + prop.PropertyModificator + " " + prop.PropertyType + " " + prop.PropertyName + ";\n");
 				}
 				text.Append(
-					"\n\n\t\tpublic " + Name + "TestDataBuilder(InMemoryDatabase database)\n" +
+					"\n\n\t\tpublic " + className + "TestDataBuilder(InMemoryDatabase database)\n" +
 					"\t\t\t: base(database)\n" +
 					"\t\t{\n" +
 					"\t\t}\n\n"
 					);
+
 				foreach (var prop in classFields)
 				{
-					StringBuilder name = new StringBuilder(prop.Name);
-					name[0] = Char.ToUpper(name[0]);
+					var propertyName = new StringBuilder(prop.PropertyName);
+					propertyName[0] = Char.ToUpper(propertyName[0]);
 					text.Append(
-						"\t\tpublic " + Name + "TestDataBuilder With" + name + "(" + prop.Typ + " " + prop.Name + "Value" + ")\n" +
+						"\t\tpublic " + className + "TestDataBuilder With" + propertyName + "(" + prop.PropertyType + " " + prop.PropertyName + "Value" + ")\n" +
 						"\t\t{\n" +
 						"\t\t\tvar result = Clone();\n" +
-						"\t\t\tresult." + prop.Name + " = " + prop.Name + "Value;\n" +
+						"\t\t\tresult." + prop.PropertyName + " = " + prop.PropertyName + "Value;\n" +
 						"\t\t\t\treturn result;\n" +
 						"\t\t}\n\n"
 						);
 				}
+
 				text.Append(
-					"\t\tprotected override " + Name + " DoBuild()\n" +
+					"\t\tprotected override " + className + " DoBuild()\n" +
 					"\t\t{\n" +
-					"\t\t\tvar result = new " + Name + "\n" +
+					"\t\t\tvar result = new " + className + "\n" +
 					"\t\t\t{\n"
 					);
 				foreach (var prop in classFields)
 				{
-					StringBuilder name = new StringBuilder(prop.Name);
-					name[0] = Char.ToUpper(name[0]);
+					var propertyName = new StringBuilder(prop.PropertyName);
+					propertyName[0] = Char.ToUpper(propertyName[0]);
 					text.Append(
-						"\t\t\t\t" + name + " = " + prop.Name + ",\n"
+						"\t\t\t\t" + propertyName + " = " + prop.PropertyName + ",\n"
 						);
 				}
 				text.Append(
 					"\t\t\t};\n\n" +
-					"\t\t\tDatabase.GetTable<" + Name + ">().Add(result);\n" +
+					"\t\t\tDatabase.GetTable<" + className + ">().Add(result);\n" +
 					"\t\t\treturn result;\n" +
 					"\t\t}\n" +
 					"\t}\n" +
 					"}"
 					);
 
-				using (StreamWriter outfile = new StreamWriter(Name + "TestDataBuilder.cs", false))
+				using (var outfile = new StreamWriter(className + "TestDataBuilder.cs", false))
 				{
 					outfile.Write(text.ToString());
 				}
